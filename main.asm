@@ -1,19 +1,22 @@
+;TODO: Make sure user can't play if they don't have enough credits (fix option 3)
 INCLUDE Irvine32.inc
 .data
 ;0dh (carriage return) moves cusor to beginning of line
 ;0ah (line feed) moves cursor down one line
-printNamePrompt BYTE "Enter your name (max 15 chars): ", 0
+
+printNamePrompt BYTE "=> Enter your name (max 15 chars): ", 0
 MAX_NAME EQU 16
 playerName BYTE MAX_NAME+1 DUP(0) ;stores the player's name, max = 15 chars
 
-menu BYTE 0dh, 0ah, "*** MAIN MENU ***", 0dh, 0ah, 0dh, 0ah, 
-			"Please select one of the following:", 0dh, 0ah,
-			"1: Display my available credits ", 0dh, 0ah,
-			"2: Add credits to my account ", 0dh, 0ah,
-			"3: Play the guessing game ", 0dh, 0ah,
-			"4: Display my statistics ", 0dh, 0ah,
-			"5: Exit the program ", 0dh, 0ah,
-			0dh, 0ah, "Enter a number: ", 0
+; 0d = carriage return, 0a = line feed, 9 = tab space
+menu BYTE 0dh, 0ah, "*** MAIN MENU ***", 0dh, 0ah, 0dh, 0ah,
+			"Please select one of the following:", 0dh, 0ah, 9h,
+			"1: Display my available credits ", 0dh, 0ah, 9h,
+			"2: Add credits to my account ", 0dh, 0ah, 9h,
+			"3: Play the guessing game ", 0dh, 0ah,9h,
+			"4: Display my statistics ", 0dh, 0ah, 9h,
+			"5: Exit the program ", 0dh, 0ah,0
+inputPrompt BYTE 0dh, 0ah, 0dh, 0ah,"=> Enter a number: ", 0
 
 userInput DWORD ?
 invalidInputStr BYTE "Invalid input, please enter an integer between 1 - 5 ", 0dh, 0ah, 0
@@ -40,7 +43,8 @@ incorrectGuess2 BYTE 0dh, 0ah, "You guessed wrong...", 0dh, 0ah, 0
 congratsMessage BYTE 0dh, 0ah, "Congratulations! You guessed the number", 0dh, 0ah, 0dh, 0ah,
 				"=> You win $2!", 0dh, 0ah, 0
 
-replayPrompt BYTE 0dh, 0ah, "Would you like to play again?", 0dh, 0ah, 0dh, 0ah, "=> Enter 'yes' or 'no': ", 0
+replayPrompt BYTE 0dh, 0ah, "Would you like to play again?", 0dh, 0ah, 0
+replayInputPrompt BYTE 0dh, 0ah, "=> Enter 'yes' or 'no': ", 0
 userYesNo BYTE 4 DUP(?) ;Max chars is 3 + null for yes/no user input
 yes2 BYTE "yes", 0
 no2 BYTE "no", 0
@@ -55,19 +59,26 @@ totalMoneyWon DWORD 0
 totalMoneyLost DWORD 0
 
 printName BYTE "Player's Name: ", 0
-printAvailableCredits BYTE 0dh, 0ah, "Available Credits: ", 0
-printGamesPlayed BYTE 0dh, 0ah, "Games Played: ", 0
-printCorrectGuesses BYTE 0dh, 0ah, "Correct Guesses: ", 0
-printWrongGuesses BYTE 0dh, 0ah, "Wrong Guesses: " ,0
-printMoneyWon BYTE 0dh, 0ah, "Money You Won: " , 0
-printMoneyLost BYTE 0dh, 0ah, "Money You Lost: " , 0
+printAvailableCredits BYTE 0dh, 0ah, 9h, "Available Credits: ", 0
+printGamesPlayed BYTE 0dh, 0ah, 9h, "Games Played: ", 0
+printCorrectGuesses BYTE 0dh, 0ah, 9h, "Correct Guesses: ", 0
+printWrongGuesses BYTE 0dh, 0ah, 9h, "Wrong Guesses: " ,0
+printMoneyWon BYTE 0dh, 0ah, 9h, "Money You Won: " , 0
+printMoneyLost BYTE 0dh, 0ah, 9h, "Money You Lost: " , 0
+printContinue BYTE 0dh, 0ah, 0dh, 0ah, "=> Press enter to continue..." , 0
+
+printGameEnd BYTE 0dh, 0ah, "Exiting program..." , 0
 
 .code
 main proc
+mov eax, lightMagenta 
+	call SetTextColor
 ;Ask for the user's name
 mov edx, OFFSET printNamePrompt
 call WriteString
 
+mov eax, white
+call SetTextColor
 ;Store name
 mov edx, OFFSET playerName
 mov ecx, MAX_NAME ;Max length 15 = chars
@@ -75,8 +86,17 @@ call ReadString
 call Clrscr ;Clear the screen
 
 mainMenu:
-	mov edx, OFFSET menu
-	call WriteString 
+	mov eax, lightCyan
+	call SetTextColor
+	mov edx, OFFSET menu ;Print menu options
+	call WriteString ;Get user input after
+
+	mov eax, lightMagenta
+	call SetTextColor
+	mov edx, OFFSET inputPrompt
+	call WriteString
+	mov eax, white
+	call SetTextColor
 	call ReadInt ;ReadInt sets overflow flag if the input is invalid
 	jno validInput ;Jump if not overflow, (AKA input is valid)
 
@@ -112,6 +132,9 @@ optionOne:
 			
 optionThree:
 call Clrscr
+;Change game prompts to cyan
+mov eax, lightCyan
+call SetTextColor
 ;Check if user has enough money to play game
 	mov eax, balance
 	cmp eax, 1
@@ -128,18 +151,27 @@ call Clrscr
 	inc eax ;Update range to 1-10 by incrementing
 	mov randomNumber, eax ;Store randomly generated number
 
+	
 	;Tell the user to guess a number
 	mov edx, OFFSET guessPrompt
 	call WriteString
 
-	mov eax, randomNumber ;debug
-	call WriteDec
+	;mov eax, randomNumber ; show random number (debug)
+	;call WriteDec
 
+	mov eax, lightMagenta
+	call SetTextColor
 	;Prompt them to guess a number
 	mov edx, OFFSET guessPrompt2
 	call WriteString
+
+	mov eax, white
+	call SetTextColor
 	call ReadInt
 	mov userGuess, eax ;Store user's guess
+	
+	mov eax, lightCyan
+	call SetTextColor
 
 	;Compare guess and random num
 	mov eax, randomNumber
@@ -178,10 +210,18 @@ wrongGuess:
 		jmp playAgain
 
 playAgain:
+	
 	;Ask if they want to play again
 	mov edx, OFFSET replayPrompt
 	call WriteString
-
+	
+	mov eax, lightMagenta
+	call SetTextColor
+	mov edx, OFFSET replayInputPrompt
+	call WriteString
+		
+		mov eax, white
+		call SetTextColor
 		;Get user input
 		mov edx, OFFSET userYesNo
 		mov ecx, LENGTHOF userYesNo ;Compare for the length of user's input
@@ -238,6 +278,9 @@ optionTwo:
 				jmp optionOne ;Display current balance
 
 optionFour:
+	mov eax, lightCyan
+	call SetTextColor
+
 	mov edx, OFFSET printName
 	call WriteString
 	mov edx, OFFSET playerName
@@ -266,9 +309,26 @@ optionFour:
 	call WriteString
 	mov eax, totalMoneyLost
 	call WriteDec
-	
 
+	mov eax, lightMagenta
+	call SetTextColor
+	mov edx, OFFSET printContinue;Prompt user to hit enter to continue
+	call WriteString
+
+	WaitForInput:
+		mov eax, 50 ;Sleep
+		call Delay ;Pause for 50ms
+
+		call ReadKey ;get input
+		jz WaitForInput ;go back if no input yet
+
+		CMP ah,1Ch ;Stores input in AH, 1C is hexadecimal for enter key
+		je mainMenu ;Go to main menu if equal to enter
+		jne WaitForInput ;Else keep waiting
+	
 optionFive:
+	mov edx, OFFSET printGameEnd
+	call WriteString
 
 		
 
