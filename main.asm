@@ -1,4 +1,4 @@
-;TODO: Make sure user can't play if they don't have enough credits (fix option 3)
+;To do: add win rate for option 4
 INCLUDE Irvine32.inc
 .data
 ;0dh (carriage return) moves cusor to beginning of line
@@ -19,15 +19,16 @@ menu BYTE 0dh, 0ah, "*** MAIN MENU ***", 0dh, 0ah, 0dh, 0ah,
 inputPrompt BYTE 0dh, 0ah, 0dh, 0ah,"=> Enter a number: ", 0
 
 userInput DWORD ?
-invalidInputStr BYTE "Invalid input, please enter an integer between 1 - 5 ", 0dh, 0ah, 0
+invalidInputStr BYTE "=> Invalid input, please enter an integer between 1 - 5!", 0dh, 0ah, 0
 
-balance DWORD 10 ;Stores available credits, user starts with $10
-amount DWORD 0 ;Amount of credits entered by user, max = 20
+balance DWORD 3 ;Stores available credits, user starts with $10
+amount SDWORD 0 ;Amount of credits entered by user, max = 20
 MAX_ALLOWED EQU 20 ;Constant for maximum allowed credits
 
-availableBalance BYTE "=> Your available balance is : $", 0
+availableBalance BYTE "=> Your available balance is: $", 0
 enterAmount BYTE 0dh, 0ah, "=> Please enter the amount you would like to add: ", 0
-invalidAmount BYTE 0dh, 0ah, "The amount of credits you add cannot exceed 20", 0
+invalidMaxAmount BYTE 0dh, 0ah, "The amount of credits you add cannot exceed $20", 0
+invalidMinAmount BYTE 0dh, 0ah, "The amount of credits you add cannot be less than $1", 0
 updatedBalance BYTE 0dh, 0ah, "=> Your Balance is now: $", 0
 
 
@@ -59,12 +60,12 @@ totalMoneyWon DWORD 0
 totalMoneyLost DWORD 0
 
 printName BYTE "Player's Name: ", 0
-printAvailableCredits BYTE 0dh, 0ah, 9h, "Available Credits: ", 0
-printGamesPlayed BYTE 0dh, 0ah, 9h, "Games Played: ", 0
-printCorrectGuesses BYTE 0dh, 0ah, 9h, "Correct Guesses: ", 0
-printWrongGuesses BYTE 0dh, 0ah, 9h, "Wrong Guesses: " ,0
-printMoneyWon BYTE 0dh, 0ah, 9h, "Money You Won: " , 0
-printMoneyLost BYTE 0dh, 0ah, 9h, "Money You Lost: " , 0
+printAvailableCredits BYTE 0dh, 0ah, 9h, "-Available Credits: $", 0
+printGamesPlayed BYTE 0dh, 0ah, 9h, "-Games Played: ", 0
+printCorrectGuesses BYTE 0dh, 0ah, 9h, "-Correct Guesses: ", 0
+printWrongGuesses BYTE 0dh, 0ah, 9h, "-Wrong Guesses: " ,0
+printMoneyWon BYTE 0dh, 0ah, 9h, "-Money You Won: $" , 0
+printMoneyLost BYTE 0dh, 0ah, 9h, "-Money You Lost: $" , 0
 printContinue BYTE 0dh, 0ah, 0dh, 0ah, "=> Press enter to continue..." , 0
 
 printGameEnd BYTE 0dh, 0ah, "Exiting program..." , 0
@@ -93,7 +94,7 @@ mainMenu:
 
 	mov eax, lightMagenta
 	call SetTextColor
-	mov edx, OFFSET inputPrompt
+	mov edx, OFFSET inputPrompt ;Ask for user input
 	call WriteString
 	mov eax, white
 	call SetTextColor
@@ -124,21 +125,21 @@ mainMenu:
 
 ;Menu option one -> displays available balance
 optionOne:
-		mov edx, OFFSET availableBalance
-		mov eax, balance
-		call WriteString
-		call WriteDec
-		jmp mainMenu
+	mov edx, OFFSET availableBalance
+	mov eax, balance
+	call WriteString
+	call WriteDec
+	jmp mainMenu
 			
 optionThree:
-call Clrscr
-;Change game prompts to cyan
-mov eax, lightCyan
-call SetTextColor
-;Check if user has enough money to play game
+	call Clrscr
+	;Change game prompts to cyan
+	mov eax, lightCyan
+	call SetTextColor
+	;Check if user has enough money to play game
 	mov eax, balance
 	cmp eax, 1
-	jb insufficientBalance
+	jl insufficientBalance
 
 	;New game starts
 	inc totalGamesPlayed
@@ -150,14 +151,10 @@ call SetTextColor
 	call RandomRange
 	inc eax ;Update range to 1-10 by incrementing
 	mov randomNumber, eax ;Store randomly generated number
-
 	
 	;Tell the user to guess a number
 	mov edx, OFFSET guessPrompt
 	call WriteString
-
-	;mov eax, randomNumber ; show random number (debug)
-	;call WriteDec
 
 	mov eax, lightMagenta
 	call SetTextColor
@@ -165,10 +162,12 @@ call SetTextColor
 	mov edx, OFFSET guessPrompt2
 	call WriteString
 
+	;Store user's guess
 	mov eax, white
 	call SetTextColor
 	call ReadInt
-	mov userGuess, eax ;Store user's guess
+	mov userGuess, eax
+	
 	
 	mov eax, lightCyan
 	call SetTextColor
@@ -179,7 +178,7 @@ call SetTextColor
 	jz correctGuess ;if values are equal, zero flag (ZF) is set
 	jnz wrongGuess
 
-correctGuess:
+	correctGuess:
 		;User earns $2 for winning
 		inc totalCorrectGuesses
 		mov eax, balance
@@ -194,9 +193,9 @@ correctGuess:
 		call WriteString
 		jmp playAgain
 
-wrongGuess:
+	wrongGuess:
 		inc totalWrongGuesses
-		dec totalMoneyLost ;Count the $1 the user paid to play as money lost
+		inc totalMoneyLost ;Count the $1 the user paid to play as money lost
 
 		;Tell them the correct number
 		mov edx, OFFSET incorrectGuess
@@ -210,7 +209,6 @@ wrongGuess:
 		jmp playAgain
 
 playAgain:
-	
 	;Ask if they want to play again
 	mov edx, OFFSET replayPrompt
 	call WriteString
@@ -220,27 +218,27 @@ playAgain:
 	mov edx, OFFSET replayInputPrompt
 	call WriteString
 		
-		mov eax, white
-		call SetTextColor
-		;Get user input
-		mov edx, OFFSET userYesNo
-		mov ecx, LENGTHOF userYesNo ;Compare for the length of user's input
-		call ReadString
+	mov eax, white
+	call SetTextColor
+	;Get user input
+	mov edx, OFFSET userYesNo
+	mov ecx, LENGTHOF userYesNo ;Compare for the length of user's input
+	call ReadString
 
-		;Check if yes
-		call Clrscr
-		mov esi, OFFSET yes2
-		mov edi, OFFSET userYesNo
-		repe cmpsb ;Compare strings, byte by byte
-		je optionThree
+	;Check if yes
+	call Clrscr
+	mov esi, OFFSET yes2
+	mov edi, OFFSET userYesNo
+	repe cmpsb ;Compare strings, byte by byte
+	je optionThree
 
-		;Check if no
-		mov esi, OFFSET no2
-		mov edi, OFFSET userYesNo
-		repe cmpsb ;Compare strings, byte by byte
-		je mainMenu
+	;Check if no
+	mov esi, OFFSET no2
+	mov edi, OFFSET userYesNo
+	repe cmpsb ;Compare strings, byte by byte
+	je mainMenu
 
-		jmp invalidYesNo
+	jmp invalidYesNo
 
 invalidYesNo:
 	;Retry if input isn't yes or no
@@ -256,23 +254,41 @@ insufficientBalance:
 
 ;Menu option 2 -> add credits to account
 optionTwo:
+		mov eax, lightMagenta
+		call SetTextColor
 		;Prompt user to enter amount
 		mov edx, OFFSET enterAmount 
 		call WriteString
-		call ReadInt
+
+		mov eax, white
+		call SetTextColor
 
 		;Store amount
+		call ReadInt
 		mov amount, eax 
-		cmp amount, MAX_ALLOWED ;Verify amount isn't greater than 20
-		jbe addCredits ;Jump if below or equal, if destination < source, then carry flag (CF) or zero flag (ZF) is set
-		ja invalidCredits ;Jump if above, carry flag (CF) and zero flag (ZF) = 0
+		cmp amount, 0 ;Verify amount isn't less than 20
+		jl invalidMinCredits
+		cmp amount, MAX_ALLOWED
+		jle addCredits ;Jump if less or equal, if destination < source, then carry flag (CF) or zero flag (ZF) is set
+		jg invalidMaxCredits ;Jump if greater, sign flag (CF) = overflow flag (OF) And zero flag (ZF) = 0
 
-		invalidCredits:
-				mov edx, OFFSET invalidAmount
+			invalidMinCredits:
+				call Clrscr ;Clear the screen
+				mov eax, lightCyan
+				call SetTextColor
+				mov edx, OFFSET invalidMinAmount
 				call WriteString ;Tell them not to add more than 20
 				jmp optionTwo ;Make them try again
 
-		addCredits:
+			invalidMaxCredits:
+				call Clrscr ;Clear the screen
+				mov eax, lightCyan
+				call SetTextColor
+				mov edx, OFFSET invalidMaxAmount
+				call WriteString ;Tell them not to add more than 20
+				jmp optionTwo ;Make them try again
+
+			addCredits:
 				mov eax, amount
 				add balance, eax
 				jmp optionOne ;Display current balance
@@ -323,14 +339,16 @@ optionFour:
 		jz WaitForInput ;go back if no input yet
 
 		CMP ah,1Ch ;Stores input in AH, 1C is hexadecimal for enter key
-		je mainMenu ;Go to main menu if equal to enter
 		jne WaitForInput ;Else keep waiting
-	
+		je ReturnToMenu;Go to main menu if equal to enter
+
+	ReturnToMenu:
+		call Clrscr ;Clear the screen
+		jmp mainMenu
+
 optionFive:
 	mov edx, OFFSET printGameEnd
 	call WriteString
-
-		
 
 call ExitProcess
 main endp
