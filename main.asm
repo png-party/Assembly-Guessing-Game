@@ -3,12 +3,11 @@ INCLUDE Irvine32.inc
 .data
 ;0dh (carriage return) moves cusor to beginning of line
 ;0ah (line feed) moves cursor down one line
-
+;9 (tab space)
 printNamePrompt BYTE "=> Enter your name (max 15 chars): ", 0
 MAX_NAME EQU 16
-playerName BYTE MAX_NAME+1 DUP(0) ;stores the player's name, max = 15 chars
+playerName BYTE MAX_NAME+1 DUP(0) ;Stores the player's name, max = 15 chars
 
-; 0d = carriage return, 0a = line feed, 9 = tab space
 menu BYTE 0dh, 0ah, "*** MAIN MENU ***", 0dh, 0ah, 0dh, 0ah,
 			"Please select one of the following:", 0dh, 0ah, 9h,
 			"1: Display my available credits ", 0dh, 0ah, 9h,
@@ -72,14 +71,18 @@ printGameEnd BYTE 0dh, 0ah, "Exiting program..." , 0
 
 .code
 main proc
+;Change prompt color to magenta 
 mov eax, lightMagenta 
-	call SetTextColor
+call SetTextColor
+
 ;Ask for the user's name
 mov edx, OFFSET printNamePrompt
 call WriteString
 
+;Change user's input to white
 mov eax, white
 call SetTextColor
+
 ;Store name
 mov edx, OFFSET playerName
 mov ecx, MAX_NAME ;Max length 15 = chars
@@ -87,14 +90,16 @@ call ReadString
 call Clrscr ;Clear the screen
 
 mainMenu:
+	;Print menu options
 	mov eax, lightCyan
 	call SetTextColor
-	mov edx, OFFSET menu ;Print menu options
-	call WriteString ;Get user input after
+	mov edx, OFFSET menu 
+	call WriteString 
 
+	;Ask for user input
 	mov eax, lightMagenta
 	call SetTextColor
-	mov edx, OFFSET inputPrompt ;Ask for user input
+	mov edx, OFFSET inputPrompt
 	call WriteString
 	mov eax, white
 	call SetTextColor
@@ -123,19 +128,61 @@ mainMenu:
 		call WriteString
 		jmp mainMenu
 
-;Menu option one -> displays available balance
+;Menu option one -> display available balance
 optionOne:
 	mov edx, OFFSET availableBalance
 	mov eax, balance
 	call WriteString
 	call WriteDec
 	jmp mainMenu
-			
+
+;Menu option 2 -> add credits to account
+optionTwo:
+		mov eax, lightMagenta
+		call SetTextColor
+		;Prompt user to enter amount
+		mov edx, OFFSET enterAmount 
+		call WriteString
+
+		mov eax, white
+		call SetTextColor
+
+		;Store amount
+		call ReadInt
+		mov amount, eax 
+		cmp amount, 0 ;Verify amount isn't less than 20
+		jl invalidMinCredits
+		cmp amount, MAX_ALLOWED
+		jle addCredits ;Jump if less or equal, if destination < source, then carry flag (CF) or zero flag (ZF) is set
+		jg invalidMaxCredits ;Jump if greater, sign flag (CF) = overflow flag (OF) And zero flag (ZF) = 0
+
+			invalidMinCredits:
+				call Clrscr ;Clear the screen
+				mov eax, lightCyan
+				call SetTextColor
+				mov edx, OFFSET invalidMinAmount
+				call WriteString ;Tell them not to add more than 20
+				jmp optionTwo ;Make them try again
+
+			invalidMaxCredits:
+				call Clrscr ;Clear the screen
+				mov eax, lightCyan
+				call SetTextColor
+				mov edx, OFFSET invalidMaxAmount
+				call WriteString ;Tell them not to add more than 20
+				jmp optionTwo ;Make them try again
+
+			addCredits:
+				mov eax, amount
+				add balance, eax
+				jmp optionOne ;Display current balance
+
+;Menu option 3 -> play guessing game
 optionThree:
 	call Clrscr
-	;Change game prompts to cyan
 	mov eax, lightCyan
 	call SetTextColor
+
 	;Check if user has enough money to play game
 	mov eax, balance
 	cmp eax, 1
@@ -240,59 +287,19 @@ playAgain:
 
 	jmp invalidYesNo
 
-invalidYesNo:
-	;Retry if input isn't yes or no
-	mov edx, OFFSET printInvalidYesNo ;Tell them their input is wrong
-	call WriteString
-	jmp playAgain
-
-insufficientBalance:
-	;Tell user to add credits if 1 > balance 
-	mov edx, OFFSET printInsufficientBalance
-	call WriteString 
-	jmp optionTwo
-
-;Menu option 2 -> add credits to account
-optionTwo:
-		mov eax, lightMagenta
-		call SetTextColor
-		;Prompt user to enter amount
-		mov edx, OFFSET enterAmount 
+	invalidYesNo:
+		;Retry if input isn't yes or no
+		mov edx, OFFSET printInvalidYesNo ;Tell them their input is wrong
 		call WriteString
+		jmp playAgain
 
-		mov eax, white
-		call SetTextColor
+	insufficientBalance:
+		;Tell user to add credits if 1 > balance 
+		mov edx, OFFSET printInsufficientBalance
+		call WriteString 
+		jmp optionTwo
 
-		;Store amount
-		call ReadInt
-		mov amount, eax 
-		cmp amount, 0 ;Verify amount isn't less than 20
-		jl invalidMinCredits
-		cmp amount, MAX_ALLOWED
-		jle addCredits ;Jump if less or equal, if destination < source, then carry flag (CF) or zero flag (ZF) is set
-		jg invalidMaxCredits ;Jump if greater, sign flag (CF) = overflow flag (OF) And zero flag (ZF) = 0
-
-			invalidMinCredits:
-				call Clrscr ;Clear the screen
-				mov eax, lightCyan
-				call SetTextColor
-				mov edx, OFFSET invalidMinAmount
-				call WriteString ;Tell them not to add more than 20
-				jmp optionTwo ;Make them try again
-
-			invalidMaxCredits:
-				call Clrscr ;Clear the screen
-				mov eax, lightCyan
-				call SetTextColor
-				mov edx, OFFSET invalidMaxAmount
-				call WriteString ;Tell them not to add more than 20
-				jmp optionTwo ;Make them try again
-
-			addCredits:
-				mov eax, amount
-				add balance, eax
-				jmp optionOne ;Display current balance
-
+;Menu option 4 -> Print statistics
 optionFour:
 	mov eax, lightCyan
 	call SetTextColor
@@ -346,6 +353,7 @@ optionFour:
 		call Clrscr ;Clear the screen
 		jmp mainMenu
 
+;Menu option 5 -> Quit game
 optionFive:
 	mov edx, OFFSET printGameEnd
 	call WriteString
