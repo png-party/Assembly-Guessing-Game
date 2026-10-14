@@ -1,4 +1,4 @@
-;Final Project for CMPR-154 Computer Architecure and Organization for Spring 2025
+;Final Project for CMPR-154 Computer Architecture and Organization for Spring 2025
 ;Note: The Irvine32 library for assembly is required to run this program!
 INCLUDE Irvine32.inc
 .data
