@@ -1,4 +1,5 @@
-;To do: add win rate for option 4
+;Final Project for CMPR-154 Computer Architecure and Organization for Spring 2025
+;Note: The Irvine32 library for assembly is required to run this program!
 INCLUDE Irvine32.inc
 .data
 ;0dh (carriage return) moves cusor to beginning of line
